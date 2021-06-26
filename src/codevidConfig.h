@@ -1,15 +1,18 @@
 #include "bits/stdc++.h"
+#include <pthread.h>
 using namespace std;
 
 
 struct agente{
     int tipo;
-    int estado;
+    char estado;
     int velocidadMaxima;
     int velocidadMinima;
     int deathCountDown;
     int healCountDown;
     int reContagio;//En caso que haya enfermado no podra volver a enfermar
+    int posX;
+    int posY;
 };
 
 struct campoMapa
@@ -35,4 +38,10 @@ vector<vector<float>> tasaContagio;
 int reinfeccion;
 
 //configuracion de agentes
-vector<struct agente>* agentes;
+vector<vector<struct agente>>* agentes;
+int cantidadGrupos;
+int agentesCount = 0;
+
+//configuracion de threads
+pthread_t *threads;
+

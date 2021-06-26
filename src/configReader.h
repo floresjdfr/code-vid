@@ -31,7 +31,7 @@ struct campoMapa **putParedes(struct campoMapa **mapa)
 //Funcion encargada de imprimir el mapa
 //Nota: solo imprime la cantidad de agentes que hay en una posicion
 //Imprime -1 si es pared
-void printParedes(struct campoMapa **mapa)
+void printParedes()
 {
     for (int i = 0; i < tamañoMapa[0]; i++)
     {
@@ -49,7 +49,7 @@ void printParedes(struct campoMapa **mapa)
 //Funcion encargada de la lectura de archivo de configuración
 //El argumento es un puntero al struct agente
 //Retorna un vector de dos dimensiones de struct agente
-struct campoMapa **readMapa(struct campoMapa **mapa)
+void readMapa()
 {
     ifstream file("../config/mapa.config");
     string line;
@@ -91,8 +91,6 @@ struct campoMapa **readMapa(struct campoMapa **mapa)
         mapa[i] = new struct campoMapa[tamañoMapa[1]];
 
     mapa = putParedes(mapa);
-    printParedes(mapa);
-    return mapa;
 }
 
 //************************************ Code-vid reader
@@ -108,7 +106,6 @@ void readCodeVid()
     string delimiter = " ";
     int lineCounter = 0;
     int agentCouter = 0;
-    
 
     while (getline(file, line))
     {
@@ -146,15 +143,12 @@ void readCodeVid()
             agentCouter--;
             tasaContagio.push_back(fila);
         }
-        else{
+        else
+        {
             reinfeccion = atoi(line.c_str());
         }
         lineCounter++;
-        
     }
-
-    
-    
 }
 
 //************************************* AGENT READER  **************************************************************
@@ -162,48 +156,57 @@ void readCodeVid()
 //Funcion encargada de la lectura de archivo de configuración de agentes
 //El argumento es un puntero al struct agente
 //Retorna un vector de dos dimensiones de struct agente
-struct campoMapa **readAgents(struct campoMapa **mapa)
+void readAgents()
 {
-    ifstream file("mapa.config");
+    ifstream file("../config/agentes.config");
     string line;
     size_t pos = 0;
     string token;
     string delimiter = " ";
+    int cantidadAgentes;
+    int tipoAgente;
+    int velocidadMaxima;
+    int velocidadMinima;
+    char estado;
 
-    getline(file, line); //Lee la primera linea (tamaño del mapa)
+    getline(file, line);
+    cantidadGrupos = atoi(line.c_str());
+    agentes = new vector<vector<struct agente>>;
+    agentes->reserve(cantidadGrupos);
 
-    pos = line.find(delimiter);              //busca la posicion del delimitador
-    token = line.substr(0, pos);             //obtiene el primer número del archivo de configuración
-    line.erase(0, pos + delimiter.length()); //borra el primer numero para dejar solo al segundo
-    tamañoMapa[0] = atoi(token.c_str());
-    tamañoMapa[1] = atoi(token.c_str());
-
-    if (file.good())
+    for (int i = 0; i < cantidadGrupos; i++)
     {
-        getline(file, line); //Lee segunda linea (total de paredes en el mapa)
-        cantidadParedes = atoi(line.c_str());
-        for (int i = 0; i < cantidadParedes; i++)
+        getline(file, line);
+        cantidadAgentes = atoi(line.c_str());
+        getline(file, line);
+        tipoAgente = atoi(line.c_str());
+        getline(file, line);
+        pos = line.find(delimiter);
+        token = line.substr(0, pos);
+        line.erase(0, pos + delimiter.length());
+        velocidadMinima = atoi(token.c_str());
+        velocidadMaxima = atoi(line.c_str());
+        getline(file, line);
+        estado = line[0];
+
+        vector<struct agente>* grupoAgentes = new vector<struct agente>;
+        grupoAgentes->reserve(cantidadAgentes);
+
+        for (int i = 0; i < cantidadAgentes; i++)
         {
-            getline(file, line);
-            int puntos[4];
-            int j = 0;
-            while ((pos = line.find(delimiter)) != string::npos)
-            {
-                token = line.substr(0, pos);             //obtiene el primer número del archivo de configuración
-                line.erase(0, pos + delimiter.length()); //borra el primer numero para dejar solo al segundo
-                puntos[j] = atoi(token.c_str());
-                j++;
-            }
-            puntos[3] = atoi(line.c_str());
-            paredesArray.push_back(make_tuple(puntos[0], puntos[1], puntos[2], puntos[3]));
+            struct agente agent;
+            agent.tipo = tipoAgente;
+            agent.estado = estado;
+            agent.velocidadMaxima = velocidadMaxima;
+            agent.velocidadMinima = velocidadMinima;
+            agent.deathCountDown = -1;
+            agent.healCountDown = -1;
+            agent.reContagio = reinfeccion;
+            agent.posX = -1;
+            agent.posY = -1;
+            grupoAgentes->push_back(agent);
+            agentesCount++;
         }
+        agentes->push_back(*grupoAgentes);
     }
-
-    mapa = new struct campoMapa *[tamañoMapa[0]];
-    for (int i = 0; i < tamañoMapa[0]; i++)
-        mapa[i] = new struct campoMapa[tamañoMapa[1]];
-
-    mapa = putParedes(mapa);
-    printParedes(mapa);
-    return mapa;
 }
