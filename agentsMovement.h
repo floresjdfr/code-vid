@@ -282,23 +282,33 @@ int trustGod(struct agente *agent, int velocidad) //Tiempo para curar
 
 void moveTipo1(int x, int y) //Posicion actual del agente
 {
-
-    while (true)
+    struct agente *mapAgent = &(*mapa[x][y].agentes)[pthread_self()];
+    iniciarEnfermedad(mapAgent);
+    while (mapAgent->vivo)
     {
-        pair<long, struct agente> mapAgent = *mapa[x][y].agentes->find(pthread_self());
+        mapAgent = &(*mapa[x][y].agentes)[pthread_self()];
+        if (duracionSimulacion == 0)
+            pthread_exit(0);
+        int velocidad = getRandomVelocity(mapAgent->velocidadMaxima, mapAgent->velocidadMinima);
+        aplicarVacuna(mapAgent);
+        reducirVacunaCountDown(mapAgent, velocidad);
+        if (kill(mapAgent, velocidad)) //matar si esta enfermo y dios decidio matarlo
+            break;
+        trustGod(mapAgent, velocidad); //curar si asi lo decidio dios
+        sleep(velocidad);
 
-        int nextX = get<1>(mapAgent).posX + get<1>(mapAgent).dirX;
-        int nextY = get<1>(mapAgent).posY + get<1>(mapAgent).dirY;
+        int nextX = mapAgent->posX + mapAgent->dirX;
+        int nextY = mapAgent->posY + mapAgent->dirY;
 
         if (isOutMap(nextX, nextY) || isWall(nextX, nextY))
         {
-            string newDirection = changeDirection(x, y, nextX, nextY, get<1>(mapAgent).dirLabel);
-            struct agente cpy = get<1>(mapAgent);
+            string newDirection = changeDirection(x, y, nextX, nextY, mapAgent->dirLabel);
+            struct agente cpy = *mapAgent;
             cpy.dirLabel = newDirection;
             cpy.dirX = mapDirecciones[newDirection][0];
             cpy.dirY = mapDirecciones[newDirection][1];
 
-            pthread_mutex_lock(&mapaMutex); //********    TESTING si necesario
+            pthread_mutex_lock(&mapaMutex);
             mapa[x][y].agentes->erase(pthread_self());
             transmitirEnfermedad(x, y, &cpy);
             mapa[x][y].agentes->insert(pair<long, struct agente>(pthread_self(), cpy));
@@ -306,7 +316,7 @@ void moveTipo1(int x, int y) //Posicion actual del agente
             continue;
         }
         //se guarda copia del agente
-        struct agente cpy = get<1>(mapAgent);
+        struct agente cpy = *mapAgent;
         cpy.posX = nextX;
         cpy.posY = nextY;
 
@@ -317,10 +327,11 @@ void moveTipo1(int x, int y) //Posicion actual del agente
         //Se inserta el nuevo agente en el nuevo cuadrante
         x = nextX;
         y = nextY;
+        transmitirEnfermedad(x, y, &cpy);
         mapa[x][y].agentes->insert(pair<long, struct agente>(pthread_self(), cpy));
         pthread_mutex_unlock(&mapaMutex);
-        sleep(1);
     }
+    mapa[x][y].agentes->erase(pthread_self());
 }
 
 //***************************************  Funciones encargadas de mover el agente TIPO 2
@@ -391,10 +402,25 @@ vector<int> calcularDireccion(int posX, int posY, int desX, int desY)
 //retorna 0 si hay error o 1 si fue correctamente ejecutado
 int avanzarTipo2(int *x, int *y, int desX, int desY)
 {
+    struct agente *mapAgent = &(*mapa[*x][*y].agentes)[pthread_self()];
     while (*x != desX && *y != desY) //Mientras el punto actual no sea igual al punto destino
     {
-        pair<long, struct agente> mapAgent = *mapa[*x][*y].agentes->find(pthread_self());
-        struct agente cpy = mapAgent.second;
+        mapAgent = &(*mapa[*x][*y].agentes)[pthread_self()];
+        if (!mapAgent->vivo)
+        {
+            return 0;
+        }
+        if (duracionSimulacion == 0)
+            return 0;
+        int velocidad = getRandomVelocity(mapAgent->velocidadMaxima, mapAgent->velocidadMinima);
+        sleep(velocidad);
+        aplicarVacuna(mapAgent);
+        reducirVacunaCountDown(mapAgent, velocidad);
+        if (kill(mapAgent, velocidad)) //matar si esta enfermo y dios decidio matarlo
+            return 0;
+        trustGod(mapAgent, velocidad); //curar si asi lo decidio dios
+
+        struct agente cpy = *mapAgent;
         vector<int> direccion = calcularDireccion(*x, *y, desX, desY); //Calcula la vector director hacia el destino
         int nextX = *x + direccion[0];
         int nextY = *y + direccion[1];
@@ -412,16 +438,20 @@ int avanzarTipo2(int *x, int *y, int desX, int desY)
         pthread_mutex_unlock(&mapaMutex);
         *x = nextX;
         *y = nextY;
-        sleep(1);
     }
+
     return 1; //Exito
 }
 
 //Funcion utilizada para mover el agente tipo 2 siguiendo la ruta hacia adelante
 void adelante(vector<pair<int, int>>::iterator iter, vector<pair<int, int>>::iterator end, int *x, int *y, vector<pair<int, int>> *vec, string *direccion)
 {
+    struct agente *mapAgent = &(*mapa[*x][*y].agentes)[pthread_self()];
     for (; iter != end; ++iter)
     {
+        mapAgent = &(*mapa[*x][*y].agentes)[pthread_self()];
+        if (!mapAgent->vivo)
+            break;
         int rs = avanzarTipo2(x, y, (*iter).first, (*iter).second);
         if (!rs)
         {
@@ -434,8 +464,12 @@ void adelante(vector<pair<int, int>>::iterator iter, vector<pair<int, int>>::ite
 //Funcion utilizada para mover el agente tipo 2 siguiendo la ruta en reversa
 void reversa(vector<pair<int, int>>::iterator iter, vector<pair<int, int>>::iterator end, int *x, int *y, vector<pair<int, int>> *vec, string *direccion)
 {
+    struct agente *mapAgent = &(*mapa[*x][*y].agentes)[pthread_self()];
     for (; iter != end; ++iter)
     {
+        mapAgent = &(*mapa[*x][*y].agentes)[pthread_self()];
+        if (!mapAgent->vivo)
+            break;
         int rs = avanzarTipo2(x, y, (*iter).first, (*iter).second);
         if (!rs)
         {
@@ -450,8 +484,9 @@ void moveTipo2(int x, int y)
     vector<pair<int, int>> ruta = crearRuta(x, y);
     int i = 0;
     string direccionI = "ADELANTE";
-
-    while (true)
+    struct agente *mapAgent = &(*mapa[x][y].agentes)[pthread_self()];
+    iniciarEnfermedad(mapAgent);
+    while (mapAgent->vivo)
     {
         if (direccionI == "ADELANTE")
         {
@@ -462,6 +497,7 @@ void moveTipo2(int x, int y)
             reversa(ruta.begin(), ruta.end(), &x, &y, &ruta, &direccionI);
         }
     }
+    mapa[x][y].agentes->erase(pthread_self());
 }
 
 //***************************************  Funciones encargadas de mover el agente TIPO 3
