@@ -4,13 +4,14 @@ using namespace std;
 
 void *showMap(void *arg)
 {
-    while (1)
+    while (duracionSimulacion > 0)
     {
         system("clear");
         printParedes();
         usleep(500000);
         //sleep(1);
     }
+    return NULL;
 }
 
 void *placeAgent(void *arg)
@@ -43,21 +44,40 @@ void *placeAgent(void *arg)
         moveTipo2(x, y);
     if (agent->tipo == 3)
         moveTipo3(x, y);
+    if (agent->tipo == 4)
+        moveTipo4(x, y);
+    return NULL;
+}
+ 
+void* iniciarSimulationCounter(void *arg){
+    int counter = 0;
+    while(duracionSimulacion > 0){
+        if (counter == inicioVacunacion)
+            pthread_cond_signal(&condVacunacion);
+        counter++;
+        sleep(1);
+        duracionSimulacion--;
+    }
     return NULL;
 }
 
 void startThreads()
 {
     pthread_t viewThread; //thread encargado de mostrar en pantalla
-
+    pthread_t simulacionTimerThread;
+    pthread_t vacunacion;
     threads = new pthread_t[agentesCount];
+    pthread_create(&simulacionTimerThread, NULL, iniciarSimulationCounter, NULL);
     pthread_create(&viewThread, NULL, showMap, NULL);
+    pthread_create(&vacunacion, NULL, iniciarProduccion, NULL);
     int counter = 0;
     for (int i = 0; i < agentesCount; i++)
     {
         pthread_create(&threads[counter], NULL, placeAgent, &agentes[i]);
         counter++;
     }
+    pthread_join(simulacionTimerThread, NULL);
+    pthread_join(vacunacion, NULL);
     pthread_join(viewThread, NULL);
     for (int i = 0; i < counter; i++)
     {
@@ -67,11 +87,17 @@ void startThreads()
 
 int main(int argc, char const *argv[])
 {
+    int duracion = atoi(argv[1]);
+    duracionSimulacion = duracion;
+    pthread_cond_init(&condVacunacion, NULL);
+    pthread_mutex_init(&mutexVacunas, NULL);
     srand((unsigned)time(0));
     readMapa();
     readCodeVid();
     readAgents();
+    readVacunas();
     startThreads();
+
 
     return 0;
 }

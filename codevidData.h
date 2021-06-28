@@ -5,14 +5,14 @@ using namespace std;
 
 struct agente{
     int vivo;
-    int contagiado;
     int tipo;
     char estado;
     int velocidadMaxima;
     int velocidadMinima;
+    int vacunado;
+    int vacunaCountDown;
     int deathCountDown;
     int healCountDown;
-    int reContagio;//En caso que haya enfermado no podra volver a enfermar
     int posX;
     int posY;
     int dirX;
@@ -71,3 +71,19 @@ std::map<string, vector<int>> mapDirecciones = {
     {"UP_RIGHT", UP_RIGHT},
     {"DOWN_LEFT", DOWN_LEFT},
     {"DOWN_RIGHT", DOWN_RIGHT}};
+
+
+//Vacunacion
+int inicioVacunacion;
+int porcentajeEficiencia;
+int duracionHacerEfecto;
+int numeroVacunas;
+int frecuenciaCreacion;
+vector<int> vacunas;
+pthread_cond_t condVacunacion;
+pthread_mutex_t mutexVacunas;
+
+
+
+//Simulacion
+int duracionSimulacion;

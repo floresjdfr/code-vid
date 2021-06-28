@@ -216,14 +216,14 @@ void readAgents()
         {
             struct agente agent;
             agent.vivo = 1;
-            agent.contagiado = 0;
             agent.tipo = tipoAgente;
             agent.estado = estado;
             agent.velocidadMaxima = velocidadMaxima;
             agent.velocidadMinima = velocidadMinima;
-            agent.deathCountDown = -1;
-            agent.healCountDown = -1;
-            agent.reContagio = reinfeccion;
+            agent.vacunado = 0;
+            agent.vacunaCountDown = -1000;
+            agent.deathCountDown = -1000;
+            agent.healCountDown = -1000;
             agent.posX = -1;
             agent.posY = -1;
 
@@ -231,4 +231,30 @@ void readAgents()
             agentesCount++;
         }
     }
+}
+
+
+
+//************************************* VACUNAS READER  **************************************************************
+
+void readVacunas()
+{
+    ifstream file("vacunacion.config");
+    string line;
+    size_t pos = 0;
+    string token;
+    string delimiter = " ";
+
+    getline(file, line);
+    inicioVacunacion = atoi(line.c_str());
+    getline(file, line);
+    porcentajeEficiencia = atoi(line.c_str());
+    getline(file, line);
+    duracionHacerEfecto = atoi(line.c_str());
+    getline(file, line);
+    pos = line.find(delimiter);              
+    token = line.substr(0, pos);             
+    line.erase(0, pos + delimiter.length()); 
+    numeroVacunas = atoi(token.c_str());
+    frecuenciaCreacion = atoi(line.c_str());
 }

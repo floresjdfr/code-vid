@@ -1,4 +1,4 @@
-#include "enfermedad.h"
+#include "vacunar.h"
 using namespace std;
 #define MAX_TIPO_2 7
 
@@ -137,9 +137,9 @@ string changeDirection(int x, int y, int nextX, int nextY, string opcion)
             int nextX2 = x + direccion2[0];
             int nextY2 = y + direccion2[0];
 
-            if (mapa[nextX1][nextY1].esPared && !mapa[nextX2][nextY2].esPared)
+            if (isWall(nextX1, nextY1) && !isWall(nextX2, nextY2))
                 return "DOWN_LEFT";
-            if (!mapa[nextX1][nextY1].esPared && mapa[nextX2][nextY2].esPared)
+            if (!isWall(nextX1, nextY1) && isWall(nextX2, nextY2))
                 return "UP_RIGHT";
             return "DOWN_RIGHT";
         }
@@ -169,9 +169,9 @@ string changeDirection(int x, int y, int nextX, int nextY, string opcion)
             int nextX2 = x + direccion2[0];
             int nextY2 = y + direccion2[0];
 
-            if (mapa[nextX1][nextY1].esPared && !mapa[nextX2][nextY2].esPared)
+            if (isWall(nextX1, nextY1) && !isWall(nextX2, nextY2))
                 return "UP_LEFT";
-            if (!mapa[nextX1][nextY1].esPared && mapa[nextX2][nextY2].esPared)
+            if (!isWall(nextX1, nextY1) && isWall(nextX2, nextY2))
                 return "DOWN_RIGHT";
             return "DOWN_LEFT";
         }
@@ -201,9 +201,9 @@ string changeDirection(int x, int y, int nextX, int nextY, string opcion)
             int nextX2 = x + direccion2[0];
             int nextY2 = y + direccion2[0];
 
-            if (mapa[nextX1][nextY1].esPared && !mapa[nextX2][nextY2].esPared)
+            if (isWall(nextX1, nextY1) && !isWall(nextX2, nextY2))
                 return "DOWN_RIGHT";
-            if (!mapa[nextX1][nextY1].esPared && mapa[nextX2][nextY2].esPared)
+            if (!isWall(nextX1, nextY1) && isWall(nextX2, nextY2))
                 return "UP_LEFT";
             return "UP_RIGHT";
         }
@@ -233,14 +233,49 @@ string changeDirection(int x, int y, int nextX, int nextY, string opcion)
             int nextX2 = x + direccion2[0];
             int nextY2 = y + direccion2[0];
 
-            if (mapa[nextX1][nextY1].esPared && !mapa[nextX2][nextY2].esPared)
+            if (isWall(nextX1, nextY1) && !isWall(nextX2, nextY2))
                 return "DOWN_LEFT";
-            if (!mapa[nextX1][nextY1].esPared && mapa[nextX2][nextY2].esPared)
+            if (!isWall(nextX1, nextY1) && isWall(nextX2, nextY2))
                 return "UP_RIGHT";
             return "UP_LEFT";
         }
     }
     return "";
+}
+
+int getRandomVelocity(int maxV, int minV)
+{
+    return rand() % (maxV - minV + 1) + minV;
+}
+
+int kill(struct agente *agent, int velocidad)
+{
+    if (agent->deathCountDown != -1000 && agent->estado == 'e')
+    {
+        if (agent->deathCountDown > -1000 && agent->deathCountDown < 0)
+        {
+            agent->vivo = 0;
+            return 1; //Muere
+        }
+        agent->deathCountDown -= velocidad;
+        return 0; //Aun no muere
+    }
+    return 0; //Aun no muere
+}
+int trustGod(struct agente *agent, int velocidad) //Tiempo para curar
+{
+    if (agent->healCountDown != -1000)
+    {
+        if (agent->healCountDown > -1000 && agent->healCountDown < 0)
+        {
+            agent->estado = 'c';
+            agent->healCountDown = -1000;
+            return 1; //Se curo gracias a dios
+        }
+        agent->healCountDown -= velocidad;
+        return 0; //Aun no
+    }
+    return 0; //Aun no
 }
 
 //***************************************  Funciones encargadas de mover el agente TIPO 1
@@ -429,16 +464,23 @@ void moveTipo2(int x, int y)
     }
 }
 
-//***************************************  Funciones encargadas de mover el agente TIPO 2
+//***************************************  Funciones encargadas de mover el agente TIPO 3
 
 //Funcion que se encarga de avanzar desde el punto actual hasta el punto destino
 //retorna 0 si hay error o 1 si fue correctamente ejecutado
 int avanzarTipo3(int *x, int *y, int desX, int desY)
 {
+    struct agente *mapAgent = &(*mapa[*x][*y].agentes)[pthread_self()];
+    int velocidad = getRandomVelocity(mapAgent->velocidadMaxima, mapAgent->velocidadMinima);
+    sleep(velocidad);
+    aplicarVacuna(mapAgent);
+    reducirVacunaCountDown(mapAgent, velocidad);
+    if (kill(mapAgent, velocidad)) //matar si esta enfermo y dios decidio matarlo
+        return 0;
+    trustGod(mapAgent, velocidad);   //curar si asi lo decidio dios
     while (*x != desX && *y != desY) //Mientras el punto actual no sea igual al punto destino
     {
-        pair<long, struct agente> mapAgent = *mapa[*x][*y].agentes->find(pthread_self());
-        struct agente cpy = mapAgent.second;
+        struct agente cpy = *mapAgent;
         vector<int> direccion = calcularDireccion(*x, *y, desX, desY); //Calcula la vector director hacia el destino
         int nextX = *x + direccion[0];
         int nextY = *y + direccion[1];
@@ -456,15 +498,18 @@ int avanzarTipo3(int *x, int *y, int desX, int desY)
         pthread_mutex_unlock(&mapaMutex);
         *x = nextX;
         *y = nextY;
-        sleep(1);
     }
     return 1; //Exito
 }
 
 void moveTipo3(int x, int y)
 {
-    while (true)
+    struct agente *mapAgent = &(*mapa[x][y].agentes)[pthread_self()];
+    iniciarEnfermedad(mapAgent);
+    while (mapAgent->vivo)
     {
+        if (duracionSimulacion == 0)
+            pthread_exit(0);
         //Obtiene posicion random
         int desX = rand() % tamañoMapa[0];
         int desY = rand() % tamañoMapa[1];
@@ -475,13 +520,29 @@ void moveTipo3(int x, int y)
         }
         avanzarTipo3(&x, &y, desX, desY);
     }
+    mapa[x][y].agentes->erase(pthread_self());
+    return;
 }
 
-
-
-//***************************************  Funciones encargadas de mover el agente TIPO 2
-void moveTipo4(int x, int y){
-    while(true){
-        
+//***************************************  Funciones encargadas de mover el agente TIPO 4
+void moveTipo4(int x, int y)
+{
+    struct agente *mapAgent = &(*mapa[x][y].agentes)[pthread_self()];
+    iniciarEnfermedad(mapAgent);
+    while (mapAgent->vivo)
+    {
+        if (duracionSimulacion == 0)
+            pthread_exit(0);
+        //Aunque este agente no se mueve, se calcula una velocidad para utilizar el mismo codigo
+        int velocidad = getRandomVelocity(mapAgent->velocidadMaxima, mapAgent->velocidadMinima);
+        sleep(velocidad);
+        aplicarVacuna(mapAgent);
+        reducirVacunaCountDown(mapAgent, velocidad);
+        if (kill(mapAgent, velocidad)) //matar si esta enfermo y dios decidio matarlo
+        {
+            mapa[x][y].agentes->erase(pthread_self());
+            continue;
+        }
+        trustGod(mapAgent, velocidad); //curar si asi lo decidio dios
     }
 }
