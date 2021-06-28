@@ -1,2 +1,2 @@
-funcionPrincipal: src/codevid.cpp
-	g++ src/codevid.cpp -o src/codevid.o -lpthread
+funcionPrincipal: codevid.cpp
+	g++ codevid.cpp -o codevid.o -lpthread

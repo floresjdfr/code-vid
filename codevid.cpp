@@ -1,6 +1,5 @@
 #include "agentsMovement.h"
 
-
 using namespace std;
 
 void *showMap(void *arg)
@@ -37,18 +36,20 @@ void *placeAgent(void *arg)
 
     //Inserta agente en mapa/
     mapa[x][y].agentes->insert(pair<long, struct agente>(pthread_self(), *agent));
-    
-    if (agent->tipo == 1)//Por el momento solo se mueven los agentes tipo1
+
+    if (agent->tipo == 1) //Por el momento solo se mueven los agentes tipo1
         moveTipo1(x, y);
     if (agent->tipo == 2)
         moveTipo2(x, y);
+    if (agent->tipo == 3)
+        moveTipo3(x, y);
     return NULL;
 }
 
 void startThreads()
 {
     pthread_t viewThread; //thread encargado de mostrar en pantalla
-  
+
     threads = new pthread_t[agentesCount];
     pthread_create(&viewThread, NULL, showMap, NULL);
     int counter = 0;
@@ -62,7 +63,6 @@ void startThreads()
     {
         pthread_join(threads[i], NULL);
     }
-    
 }
 
 int main(int argc, char const *argv[])

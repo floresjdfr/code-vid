@@ -215,6 +215,8 @@ void readAgents()
         for (int i = 0; i < cantidadAgentes; i++)
         {
             struct agente agent;
+            agent.vivo = 1;
+            agent.contagiado = 0;
             agent.tipo = tipoAgente;
             agent.estado = estado;
             agent.velocidadMaxima = velocidadMaxima;

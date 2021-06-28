@@ -4,6 +4,8 @@ using namespace std;
 
 
 struct agente{
+    int vivo;
+    int contagiado;
     int tipo;
     char estado;
     int velocidadMaxima;

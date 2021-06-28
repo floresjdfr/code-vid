@@ -2,6 +2,11 @@
 using namespace std;
 #define MAX_TIPO_2 7
 
+//Funcion encargada de verificar si el punto x, y se encuentra dentro del mapa
+//Retorna 1 si la posicion 'i' esta fuera del mapa
+//Retorna 2 si la posicion 'j' esta fuera del mapa
+//Retorna 3 si ambas estan fuera del mapa
+//Retorna 0 si no esta fuera del mapa
 int isOutMap(int x, int y)
 {
     if ((x < 0 | x >= tamañoMapa[1]) && !(y < 0 | y >= tamañoMapa[0]))
@@ -12,6 +17,9 @@ int isOutMap(int x, int y)
         return 3;
     return 0;
 }
+
+//Funcion que verifica si el punto x, y es una pared
+//Retorna 0 si no es pared o 1 si es o esta fuera del mapa
 int isWall(int x, int y)
 {
     if (!isOutMap(x, y))
@@ -19,6 +27,8 @@ int isWall(int x, int y)
     return 1;
 }
 
+//Funcion utilizada para obtener una direccion random a la hora de poner los agentes en el mapa al iniciar la simulacion
+//Returna un pair el cual es el identificador de la direccion y seguido de un vector director el cual indica hacia donde dirigiste.
 pair<string, vector<int>> getRandomDirection()
 {
     int option = rand() % 8 + 1;
@@ -81,6 +91,9 @@ pair<string, vector<int>> getRandomDirection()
     return pair<string, vector<int>>("UNKNOWN", *(new vector<int>));
 }
 
+//Funcion encargada de cambiar la direccion de un punto x, y
+//Recibe como argumentos el punto x, y. El siguiente punto x, y hacia donde se pretende mover y un string con el 'label' identificando el movimiento del agente
+//Returna la futura direccion hacia donde el agente se movera
 string changeDirection(int x, int y, int nextX, int nextY, string opcion)
 {
     if (opcion == "UP")
@@ -230,6 +243,8 @@ string changeDirection(int x, int y, int nextX, int nextY, string opcion)
     return "";
 }
 
+//***************************************  Funciones encargadas de mover el agente TIPO 1
+
 void moveTipo1(int x, int y) //Posicion actual del agente
 {
 
@@ -250,9 +265,9 @@ void moveTipo1(int x, int y) //Posicion actual del agente
 
             pthread_mutex_lock(&mapaMutex); //********    TESTING si necesario
             mapa[x][y].agentes->erase(pthread_self());
+            transmitirEnfermedad(x, y, &cpy);
             mapa[x][y].agentes->insert(pair<long, struct agente>(pthread_self(), cpy));
             pthread_mutex_unlock(&mapaMutex);
-
             continue;
         }
         //se guarda copia del agente
@@ -273,6 +288,10 @@ void moveTipo1(int x, int y) //Posicion actual del agente
     }
 }
 
+//***************************************  Funciones encargadas de mover el agente TIPO 2
+
+//Funcion que crea una ruta de puntos aleatorios iniciando en x, y
+//Returna un vector con pares de puntos
 vector<pair<int, int>> crearRuta(int x, int y)
 {
     vector<pair<int, int>> ruta;
@@ -307,6 +326,8 @@ int isZero(int n)
     return n == 0;
 }
 
+//Funcion que toma el punto actual posX, posY y utiliza un punto destino desX, desY para calcular el vector director para moverse hacia ese punto
+//Retorna un vector con vector[0]=x, vector[1]=y indicando el vector de la direccion
 vector<int> calcularDireccion(int posX, int posY, int desX, int desY)
 {
     int resX = desX - posX;
@@ -331,6 +352,7 @@ vector<int> calcularDireccion(int posX, int posY, int desX, int desY)
     return *(new vector<int>); //linea solo para quitar error
 }
 
+//Funcion que se encarga de avanzar desde el punto actual hasta el punto destino
 //retorna 0 si hay error o 1 si fue correctamente ejecutado
 int avanzarTipo2(int *x, int *y, int desX, int desY)
 {
@@ -350,8 +372,7 @@ int avanzarTipo2(int *x, int *y, int desX, int desY)
         //Borra el agente en la posicion actual y lo agrega a la nueva posicion
         pthread_mutex_lock(&mapaMutex);
         mapa[*x][*y].agentes->erase(pthread_self());
-        struct agente *newAgent = &cpy;
-        transmitirEnfermedad(nextX, nextY, newAgent);
+        transmitirEnfermedad(nextX, nextY, &cpy);
         mapa[nextX][nextY].agentes->insert(pair<long, struct agente>(pthread_self(), cpy));
         pthread_mutex_unlock(&mapaMutex);
         *x = nextX;
@@ -361,26 +382,28 @@ int avanzarTipo2(int *x, int *y, int desX, int desY)
     return 1; //Exito
 }
 
-
-void adelante(vector<pair<int, int>>::iterator iter, vector<pair<int, int>>::iterator end, int* x, int *y, vector<pair<int, int>>* vec, string * direccion)
+//Funcion utilizada para mover el agente tipo 2 siguiendo la ruta hacia adelante
+void adelante(vector<pair<int, int>>::iterator iter, vector<pair<int, int>>::iterator end, int *x, int *y, vector<pair<int, int>> *vec, string *direccion)
 {
     for (; iter != end; ++iter)
     {
         int rs = avanzarTipo2(x, y, (*iter).first, (*iter).second);
-        if (!rs){
+        if (!rs)
+        {
             //vec->erase(iter, end);
             *direccion = "REVERSA";
         }
     }
 }
 
-
-void reversa(vector<pair<int, int>>::iterator iter, vector<pair<int, int>>::iterator end, int* x, int *y, vector<pair<int, int>>* vec, string * direccion)
+//Funcion utilizada para mover el agente tipo 2 siguiendo la ruta en reversa
+void reversa(vector<pair<int, int>>::iterator iter, vector<pair<int, int>>::iterator end, int *x, int *y, vector<pair<int, int>> *vec, string *direccion)
 {
     for (; iter != end; ++iter)
     {
         int rs = avanzarTipo2(x, y, (*iter).first, (*iter).second);
-        if (!rs){
+        if (!rs)
+        {
             //vec->erase(iter, end);
             *direccion = "ADELANTE";
         }
@@ -404,53 +427,61 @@ void moveTipo2(int x, int y)
             reversa(ruta.begin(), ruta.end(), &x, &y, &ruta, &direccionI);
         }
     }
+}
 
-    // while (i >= 0 && i < ruta.size())
-    // {
+//***************************************  Funciones encargadas de mover el agente TIPO 2
 
-    //     if (direccionI == "ADELANTE")
-    //     {
-    //         int size = ruta.size();
-    //         if (i < size)
-    //         {
-    //             int rs = avanzarTipo2(&x, &y, ruta[i].first, ruta[i].second);
+//Funcion que se encarga de avanzar desde el punto actual hasta el punto destino
+//retorna 0 si hay error o 1 si fue correctamente ejecutado
+int avanzarTipo3(int *x, int *y, int desX, int desY)
+{
+    while (*x != desX && *y != desY) //Mientras el punto actual no sea igual al punto destino
+    {
+        pair<long, struct agente> mapAgent = *mapa[*x][*y].agentes->find(pthread_self());
+        struct agente cpy = mapAgent.second;
+        vector<int> direccion = calcularDireccion(*x, *y, desX, desY); //Calcula la vector director hacia el destino
+        int nextX = *x + direccion[0];
+        int nextY = *y + direccion[1];
+        if (isWall(nextX, nextY) || isOutMap(nextX, nextY))
+            return 0;
+        //En caso de avanzar exitosamente a la siguiente posicion se procede...
+        cpy.posX = nextX;
+        cpy.posY = nextY;
 
-    //             if (!rs)
-    //             {
-    //                 direccionI = "REVERSA";
-    //                 i--;
-    //             }
-    //             else
-    //             {
-    //                 i++;
-    //             }
-    //         }
-    //         else
-    //         {
-    //             i = i - 2;
-    //             direccionI = "REVERSA";
-    //         }
-    //     }
-    //     if (direccionI == "REVERSA")
-    //     {
-    //         if (i >= 0)
-    //         {
-    //             int rs = avanzarTipo2(&x, &y, ruta[i].first, ruta[i].second);
-    //             if (!rs)
-    //             {
-    //                 direccionI = "ADELANTE";
-    //                 i--;
-    //             }
-    //             else
-    //             {
-    //                 i++;
-    //             }
-    //         }
-    //         else
-    //         {
-    //             i = i + 2;
-    //             direccionI = "ADELANTE";
-    //         }
-    //     }
-    // }
+        //Borra el agente en la posicion actual y lo agrega a la nueva posicion
+        pthread_mutex_lock(&mapaMutex);
+        mapa[*x][*y].agentes->erase(pthread_self());
+        transmitirEnfermedad(nextX, nextY, &cpy);
+        mapa[nextX][nextY].agentes->insert(pair<long, struct agente>(pthread_self(), cpy));
+        pthread_mutex_unlock(&mapaMutex);
+        *x = nextX;
+        *y = nextY;
+        sleep(1);
+    }
+    return 1; //Exito
+}
+
+void moveTipo3(int x, int y)
+{
+    while (true)
+    {
+        //Obtiene posicion random
+        int desX = rand() % tamañoMapa[0];
+        int desY = rand() % tamañoMapa[1];
+        while (isWall(desX, desY) || isOutMap(desX, desY))
+        {
+            desX = rand() % tamañoMapa[0];
+            desY = rand() % tamañoMapa[1];
+        }
+        avanzarTipo3(&x, &y, desX, desY);
+    }
+}
+
+
+
+//***************************************  Funciones encargadas de mover el agente TIPO 2
+void moveTipo4(int x, int y){
+    while(true){
+        
+    }
 }
