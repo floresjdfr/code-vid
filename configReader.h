@@ -1,4 +1,4 @@
-#include "codevidConfig.h"
+#include "codevidData.h"
 using namespace std;
 
 //funcion encargada de utilizar las paredes leidas desde el archivo de configuracion
@@ -38,9 +38,26 @@ void printParedes()
         for (int j = 0; j < tamañoMapa[1]; j++)
         {
             if (mapa[i][j].esPared)
-                cout << left << setw(3) << mapa[i][j].esPared;
+            {
+                cout << "-";
+                cout << "|";
+            }
             else
-                cout << left << setw(3) << mapa[i][j].agentes.size();
+            {
+                if (mapa[i][j].agentes->size() > 0)
+                {
+                    map<long, struct agente>::iterator it;
+
+                    for (it = mapa[i][j].agentes->begin(); it != mapa[i][j].agentes->end(); it++)
+                    {
+
+                        cout << (*it).second.estado;
+                    }
+                    cout << "|";
+                }
+                else
+                    cout << "." << "|";
+            }
         }
         cout << endl;
     }
@@ -51,7 +68,7 @@ void printParedes()
 //Retorna un vector de dos dimensiones de struct agente
 void readMapa()
 {
-    ifstream file("../config/mapa.config");
+    ifstream file("mapa.config");
     string line;
     size_t pos = 0;
     string token;
@@ -90,7 +107,15 @@ void readMapa()
     for (int i = 0; i < tamañoMapa[0]; i++)
         mapa[i] = new struct campoMapa[tamañoMapa[1]];
 
+    for (int i = 0; i < tamañoMapa[0]; i++)
+    { //Inicia el vector de agentes en cada cuadrante del mapa, necesario para no perder informacion y no cree copias
+        for (int j = 0; j < tamañoMapa[1]; j++)
+        {
+            mapa[i][j].agentes = new map<long, struct agente>;
+        }
+    }
     mapa = putParedes(mapa);
+    pthread_mutex_init(&mapaMutex, NULL);
 }
 
 //************************************ Code-vid reader
@@ -99,7 +124,7 @@ void readMapa()
 //Retorna un vector de dos dimensiones de struct agente
 void readCodeVid()
 {
-    ifstream file("../config/code-vid.config");
+    ifstream file("code-vid.config");
     string line;
     size_t pos = 0;
     string token;
@@ -158,7 +183,7 @@ void readCodeVid()
 //Retorna un vector de dos dimensiones de struct agente
 void readAgents()
 {
-    ifstream file("../config/agentes.config");
+    ifstream file("agentes.config");
     string line;
     size_t pos = 0;
     string token;
@@ -171,8 +196,6 @@ void readAgents()
 
     getline(file, line);
     cantidadGrupos = atoi(line.c_str());
-    agentes = new vector<vector<struct agente>>;
-    agentes->reserve(cantidadGrupos);
 
     for (int i = 0; i < cantidadGrupos; i++)
     {
@@ -189,9 +212,6 @@ void readAgents()
         getline(file, line);
         estado = line[0];
 
-        vector<struct agente>* grupoAgentes = new vector<struct agente>;
-        grupoAgentes->reserve(cantidadAgentes);
-
         for (int i = 0; i < cantidadAgentes; i++)
         {
             struct agente agent;
@@ -204,9 +224,9 @@ void readAgents()
             agent.reContagio = reinfeccion;
             agent.posX = -1;
             agent.posY = -1;
-            grupoAgentes->push_back(agent);
+
+            agentes.push_back(agent);
             agentesCount++;
         }
-        agentes->push_back(*grupoAgentes);
     }
 }
