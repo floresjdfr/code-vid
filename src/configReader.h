@@ -68,7 +68,7 @@ void printParedes()
 //Retorna un vector de dos dimensiones de struct agente
 void readMapa()
 {
-    ifstream file("mapa.config");
+    ifstream file("config/mapa.config");
     string line;
     size_t pos = 0;
     string token;
@@ -124,7 +124,7 @@ void readMapa()
 //Retorna un vector de dos dimensiones de struct agente
 void readCodeVid()
 {
-    ifstream file("code-vid.config");
+    ifstream file("config/code-vid.config");
     string line;
     size_t pos = 0;
     string token;
@@ -183,7 +183,7 @@ void readCodeVid()
 //Retorna un vector de dos dimensiones de struct agente
 void readAgents()
 {
-    ifstream file("agentes.config");
+    ifstream file("config/agentes.config");
     string line;
     size_t pos = 0;
     string token;
@@ -239,7 +239,7 @@ void readAgents()
 
 void readVacunas()
 {
-    ifstream file("vacunacion.config");
+    ifstream file("config/vacunacion.config");
     string line;
     size_t pos = 0;
     string token;
